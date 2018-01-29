@@ -1,5 +1,11 @@
 This repository contains a PIP package which is an OpenAI environment for simulating an environment for OptClang.
 
+gym-OptClang
+==============================================================
+The `gym-OptClang` is an `OpanAI Gym` compatiable interface.\
+However, do not assume the usage of APIs are as same as the `Gym`\
+Read the document and source code may help you a lot.
+
 
 Installation
 ---------------------------------------
@@ -80,14 +86,12 @@ The Environment
 | 33  | LowerExpectIntrinsicPass       |
 
 
-* Reward
-    * Calculation based on Function-Dict
-        * Return dict{ “function name”: reward }
-            * With function usage from profiling:
-                *  `alpha * 10 * ((old_total_cycles * old_usage - new_total_cycles * new_usage) / (old_total_cycles * old_usage)) * abs((delta_total_cycles - sigma_total_cycles)/sigma_total_cycles)`
-            *  Without function usage from profiling
-                *  `alpha * ((old_total_cycles - new_total_cycles) / old_total_cycles) * abs((delta_total_cycles - sigma_total_cycles)/sigma_total_cycles)`
-
+- Reward
+  - Indictating status
+    - Success: 1
+    - Fail: -1
+  - Real reward calculating based on the returned "Dict" during runtime
+    - Please refer to [source code of the agent](https://github.com/JaredCJR/PPO-OptClang) for more details.
 
 - Starting State
   - Random select a program
