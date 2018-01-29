@@ -11,15 +11,9 @@ import numpy as np
 from gym import spaces
 
 
-def get_chance(x):
-    e = math.exp(1)
-    return (1.0 + e) / (1. + math.exp(x + 1))
-
-
 class OptClangEnv(gym.Env):
     """
-    Define a simple environment.
-
+    Define an environment.
     The environment defines which actions can be taken at which point and
     when the agent receives which reward.
     """
@@ -28,28 +22,26 @@ class OptClangEnv(gym.Env):
         self.__version__ = "0.1.0"
         print("OptClangEnv - Version {}".format(self.__version__))
 
-        # General variables defining the environment
-        self.MAX_PRICE = 2.0
-        self.TOTAL_TIME_STEPS = 2
+        '''
+        Define what the agent can do:
+        {0, 1, 2, ..., 33}
+        '''
+        self.action_space = spaces.Discrete(34)
 
-        self.curr_step = -1
-        self.is_banana_sold = False
-
-        # Define what the agent can do
-        # Sell at 0.00 EUR, 0.10 Euro, ..., 2.00 Euro
-        self.action_space = spaces.Discrete(21)
-
-        # Observation is the remaining time
-        low = np.array([0.0,  # remaining_tries
-                        ])
-        high = np.array([self.TOTAL_TIME_STEPS,  # remaining_tries
-                         ])
+        '''
+        Define the observation: the feature from instrumentation the passes.
+        '''
+        FeatureSize = 4176
+        low = np.array([0]*FeatureSize)
+        high = np.array([65535]*FeatureSize)
         self.observation_space = spaces.Box(low, high)
 
         # Store what the agent tried
         self.curr_episode = -1
+        self.applied_passes = 0
         self.action_episode_memory = []
 
+    #TODO
     def _step(self, action):
         """
         The agent takes a step in the environment.
@@ -88,6 +80,7 @@ class OptClangEnv(gym.Env):
         ob = self._get_state()
         return ob, reward, self.is_banana_sold, {}
 
+    #TODO
     def _take_action(self, action):
         self.action_episode_memory[self.curr_episode].append(action)
         self.price = ((float(self.MAX_PRICE) /
@@ -106,6 +99,7 @@ class OptClangEnv(gym.Env):
             self.is_banana_sold = True  # abuse this a bit
             self.price = 0.0
 
+    #TODO
     def _get_reward(self):
         if self.is_banana_sold:
             return self.price - 1
@@ -120,15 +114,16 @@ class OptClangEnv(gym.Env):
         -------
         observation (object): the initial observation of the space.
         """
-        self.curr_episode += 1
         self.action_episode_memory.append([])
-        self.is_banana_sold = False
-        self.price = 1.00
+        self.curr_episode = -1
+        self.applied_passes = 0
+        self.action_episode_memory = []
         return self._get_state()
 
     def _render(self, mode='human', close=False):
         return
 
+    #TODO
     def _get_state(self):
         """Get the observation."""
         ob = [self.TOTAL_TIME_STEPS - self.curr_step]
