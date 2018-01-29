@@ -28,6 +28,8 @@ The Environment
 
 - Observation
   - Type: BOX(4176)
+
+
 | Num  | Observation           | Min | Max                                                                                 |
 | ---- | --------------------- | --- | ----------------------------------------------------------------------------------- |
 | 0    | Added by PassRewriter | 0   | Maximum number of unsigned int(Based on the instrumentation runtime implementation) |
@@ -38,6 +40,8 @@ The Environment
 - Actions
   - Type: Discrete(34)
   - The action start from “0”, but the modified Clang start from 1
+
+
 | Num | Action (Apply pass)            |
 | --- | ------------------------------ |
 | 0   | PGOMemOPSizeOptLegacyPass      |
@@ -76,17 +80,15 @@ The Environment
 | 33  | LowerExpectIntrinsicPass       |
 
 
-- Reward
-  - Calculation based on Function-Dict
-    - Return { “function name”: reward }
-      - With function usage from profiling
-```
-alpha * 10 * ((old_total_cycles * old_usage - new_total_cycles * new_usage) / (old_total_cycles * old_usage)) * abs((delta_total_cycles - sigma_total_cycles)/sigma_total_cycles)
-```
-      - Without function usage  from profiling
-```
-alpha * ((old_total_cycles - new_total_cycles) / old_total_cycles) * abs((delta_total_cycles - sigma_total_cycles)/sigma_total_cycles)
-```
+* Reward
+    * Calculation based on Function-Dict
+        * Return dict{ “function name”: reward }
+            * With function usage from profiling:
+                *  `alpha * 10 * ((old_total_cycles * old_usage - new_total_cycles * new_usage) / (old_total_cycles * old_usage)) * abs((delta_total_cycles - sigma_total_cycles)/sigma_total_cycles)`
+            *  Without function usage from profiling
+                *  `alpha * ((old_total_cycles - new_total_cycles) / old_total_cycles) * abs((delta_total_cycles - sigma_total_cycles)/sigma_total_cycles)`
+
+
 - Starting State
   - Random select a program
 - Episode Termination
