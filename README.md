@@ -9,7 +9,7 @@ Install the [OpenAI gym](https://gym.openai.com/docs/).
 Then install this package via
 
 ```
-pip install -e .
+sudo -H pip3 install -e . --upgrade
 ```
 
 Usage
