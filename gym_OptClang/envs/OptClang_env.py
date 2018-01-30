@@ -106,7 +106,8 @@ class OptClangEnv(gym.Env):
         return the features from applying empty pass
         """
         #TODO: refer to EnvDoJob() and handle the retStatus
-        self.Worker.RemoteDoJob(Target=target, Passes="")
+        ob, reward, info = self.Worker.RemoteDoJob(Target=target, Passes="")
+        return ob
 
     def _reset(self):
         """

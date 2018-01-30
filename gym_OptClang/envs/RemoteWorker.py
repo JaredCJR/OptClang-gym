@@ -3,6 +3,7 @@ import socket
 import os
 import sys
 import fcntl
+import time
 
 class TcpClient():
     SOCKET = None
@@ -136,8 +137,8 @@ class LockMechanism():
     def release(self):
         self.FD.seek(0)
         OwnerPid = self.FD.read()
-        print("My pid={}\n".format(os.getpid()))
-        print("Lock pid={}\n".format(OwnerPid))
+        #print("My pid={}\n".format(os.getpid()))
+        #print("Lock pid={}\n".format(OwnerPid))
         if str(os.getpid()) == OwnerPid:
             fcntl.flock(self.FD, fcntl.LOCK_UN)
             self.FD.close()
@@ -201,6 +202,27 @@ class Worker():
         else:
             print("Lock file does not exist.", file=sys.stderr)
             sys.exit(1)
+    def InfoFactory(self, ProfiledData):
+        pass
+
+    def FeatureFactory(self, FeaturesStr):
+        retDict = {}
+        '''
+        ex. for each fuinction:
+        atoi @ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        '''
+        functionList = FeaturesStr.split('\n')
+        for func in functionList:
+            funcInfo = func.split('@')
+            feaList = []
+            for count in funcInfo[1].split(','):
+                try:
+                    feaList.append(int(count.strip()))
+                except:
+                    pass
+            retDict[funcInfo[0].strip()] = feaList
+        print(retDict.keys())
+        return retDict
 
     def RemoteDoJobOnce(self, Target, Passes):
         """
@@ -217,15 +239,53 @@ class Worker():
         retInfo = {}
 
         tcp = TcpClient()
+        # get remote-worker
         WorkerID = self.hireRemoteWorker()
-        #TODO
-        msg = "ID=" + WorkerID + "\n"
-        print(msg)
+        # tell env-daemon to build, verify and run
+        runStart = time.perf_counter()
+        #FIXME: for debugging
+        Target="nsieve-bits"
+        msg = "target @ {} @ {}".format(Target, Passes)
+        tcp.Send(WorkerID=WorkerID, Msg=msg)
+        retStatus = tcp.Receive(WorkerID=WorkerID).strip()
+        runEnd = time.perf_counter()
+        runTime = runEnd - runStart
+        '''
+        Get data for success run.
+        '''
+        retProfiled = None
+        retFeatures = None
+        if retStatus == "Success":
+            sendStart = time.perf_counter()
+            # get profiled data
+            gotProfiled = False
+            while retProfiled is None:
+                if gotProfiled:
+                    print("Retry to get retProfiled")
+                tcp.Send(WorkerID=WorkerID, Msg="profiled @ {}".format(Target))
+                retProfiled = tcp.Receive(WorkerID=WorkerID).strip()
+                gotProfiled = True
+            # get features
+            gotFeatures = False
+            while retFeatures is None:
+                if gotFeatures:
+                    print("Retry to get retFeatures")
+                tcp.Send(WorkerID=WorkerID, Msg="features")
+                retFeatures = tcp.Receive(WorkerID=WorkerID).strip()
+                gotFeatures = True
+            sendEnd = time.perf_counter()
+            sendTime = sendEnd - sendStart
+            printMsg = "WorkerID: {}; Target: {}; Status: {}; \nProfileSize: {}; FeatureSize: {}; \nRun-Time: {}; Send-Time: {};".format(WorkerID, Target, retStatus, len(retProfiled), len(retFeatures), runTime, sendTime)
+        else:
+            printMsg = "RunCmd may failed.\nWorkerID: {}; Target: {}; Status: {}; \nRun-Time: {};".format(WorkerID, Target, retStatus, runTime)
 
-
+        print(printMsg)
+        retInfo = self.InfoFactory(retProfiled)
+        retFeatures = self.FeatureFactory(retFeatures)
+        '''
+        No matter it is successful or failed, free the worker.
+        '''
         self.freeRemoteWorker(WorkerID)
-        #FIXME: for testing
-        retStatus = "Testing"
         return retFeatures, retStatus, retInfo
 
     def RemoteDoJob(self, Target, Passes):
