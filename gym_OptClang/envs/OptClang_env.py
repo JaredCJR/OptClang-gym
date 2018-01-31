@@ -49,6 +49,7 @@ class OptClangEnv(gym.Env):
         self.curr_episode = -1
         self.curr_step = 0
         self.action_episode_memory = []
+        self.seed_num = None
         #In out "random" experiment, 9 is the avaerage passes number that performs best.
         self.expected_passes_num = 9
         self.run_target = ""
@@ -120,13 +121,16 @@ class OptClangEnv(gym.Env):
         self.action_episode_memory.append([])
         self.curr_episode += 1
         self.curr_step = 0
-        self.run_target = random.choice(list(self.AllTargetsDict.keys()))
+        random.seed(a=self.seed_num)
+        TargetList = sorted(list(self.AllTargetsDict.keys()))
+        self.run_target = random.choice(TargetList)
         return self._get_init_ob(self.run_target, self.action_episode_memory[self.curr_episode])
 
     def _render(self, mode='human', close=False):
+        print("gym-OptClang does not support render()")
         return
 
-    def _seed(self):
-        #TODO
+    def _seed(self, seed_num):
+        self.seed_num = seed_num
         return
 
