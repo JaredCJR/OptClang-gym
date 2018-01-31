@@ -203,7 +203,26 @@ class Worker():
             print("Lock file does not exist.", file=sys.stderr)
             sys.exit(1)
     def InfoFactory(self, ProfiledData):
-        pass
+        """
+        Input example
+Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cxx::hashtable<std::pair<char const* const, int>, char const*, __gnu_cxx::hash<char const*>, std::_Select1st<std::pair<char const* const, int> >, eqstr, std::allocator<int> >::resize  | 0.097
+
+        Return format:
+        dict{"TotalCyclesStat": number; "FunctionUsageDict":{"function-name": "Usage"(float)}}
+        """
+        retDict = {}
+        retDict["TotalCyclesStat"] = None
+        retDict["FunctionUsageDict"] = {}
+        SplitDataList = ProfiledData.split(';')
+        for rec in SplitDataList:
+            items = rec.split('|')
+            if len(items) == 2: #ex. cpu-cycles | 1051801991
+                retDict["TotalCyclesStat"] = items[1].strip()
+            elif len(items) == 3: #ex. func | main | 0.190
+                FuncName = items[1].strip()
+                FuncUsage = float(items[2].strip())
+                retDict["FunctionUsageDict"][FuncName] = FuncUsage
+        return retDict
 
     def FeatureFactory(self, FeaturesStr):
         retDict = {}
@@ -220,8 +239,9 @@ class Worker():
                     feaList.append(int(count.strip()))
                 except:
                     pass
+            # make sure all the features are parsed
+            assert(len(feaList) == 4176)
             retDict[funcInfo[0].strip()] = feaList
-        print(retDict.keys())
         return retDict
 
     def RemoteDoJobOnce(self, Target, Passes):
@@ -243,8 +263,6 @@ class Worker():
         WorkerID = self.hireRemoteWorker()
         # tell env-daemon to build, verify and run
         runStart = time.perf_counter()
-        #FIXME: for debugging
-        Target="nsieve-bits"
         msg = "target @ {} @ {}".format(Target, Passes)
         tcp.Send(WorkerID=WorkerID, Msg=msg)
         retStatus = tcp.Receive(WorkerID=WorkerID).strip()
@@ -275,20 +293,21 @@ class Worker():
                 gotFeatures = True
             sendEnd = time.perf_counter()
             sendTime = sendEnd - sendStart
-            printMsg = "WorkerID: {}; Target: {}; Status: {}; \nProfileSize: {}; FeatureSize: {}; \nRun-Time: {}; Send-Time: {};".format(WorkerID, Target, retStatus, len(retProfiled), len(retFeatures), runTime, sendTime)
+            printMsg = "WorkerID: {}; Target: {}; Status: {}; \nPasses= {}\nProfileSize: {}; FeatureSize: {}; \nRun-Time: {}; Send-Time: {};\n".format(WorkerID, Target, retStatus, Passes,len(retProfiled), len(retFeatures), runTime, sendTime)
         else:
-            printMsg = "RunCmd may failed.\nWorkerID: {}; Target: {}; Status: {}; \nRun-Time: {};".format(WorkerID, Target, retStatus, runTime)
-
+            printMsg = "\nRunCmd may failed.\n\nWorkerID: {}; Target: {}; Status: {};\nPasses: {}\nRun-Time: {};\n".format(WorkerID, Target, retStatus, Passes, runTime)
+        printMsg = printMsg + "--------------------------------------\n"
         print(printMsg)
-        retInfo = self.InfoFactory(retProfiled)
-        retFeatures = self.FeatureFactory(retFeatures)
         '''
         No matter it is successful or failed, free the worker.
         '''
         self.freeRemoteWorker(WorkerID)
-        return retFeatures, retStatus, retInfo
+        return retFeatures, retStatus, retProfiled
 
     def RemoteDoJob(self, Target, Passes):
+        """
+        return observation, reward, info
+        """
         retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes)
         while not retStatus:
             '''
@@ -297,13 +316,27 @@ class Worker():
             Try again until get meaningful messages.
             '''
             retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes)
+        '''
+        The info wrapper
+        '''
+        retInfo = self.InfoFactory(retInfo)
+        retFeatures = self.FeatureFactory(retFeatures)
         return retFeatures, retStatus, retInfo
 
-    def run(self, target, OldPasses, action):
+    def run(self, Target, ActionList):
         """
-        return the result from the remote worker.
+        return observation, reward, info
         """
         retOb = []
         retReward = None
         retInfo = {}
+        # assemble the desired passes-str
+        Passes = ""
+        for action in ActionList:
+            Passes = Passes + str(action) + " "
+        retOb, retReward, retInfo = self.RemoteDoJob(Target, Passes)
+        if retReward == "Success":
+            retReward = 1
+        else:
+            retReward = -1
         return retOb, retReward, retInfo

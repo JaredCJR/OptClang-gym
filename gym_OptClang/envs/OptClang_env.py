@@ -47,7 +47,7 @@ class OptClangEnv(gym.Env):
         Store what the agent tried
         '''
         self.curr_episode = -1
-        self.applied_passes = 0
+        self.curr_step = 0
         self.action_episode_memory = []
         #In out "random" experiment, 9 is the avaerage passes number that performs best.
         self.expected_passes_num = 9
@@ -74,7 +74,7 @@ class OptClangEnv(gym.Env):
                 amount of reward achieved by the previous action. The scale
                 varies between environments, but the goal is always to increase
                 your total reward.
-                Indicating "Success = 1" or "Fail = -1"
+                Indicating "Success = 1" or "Failed = -1"
                 For us, the real rewards must calculate again with info(dict).
             episode_over (bool) :
                 whether it's time to reset the environment again. Most (but not
@@ -82,31 +82,31 @@ class OptClangEnv(gym.Env):
                 being True indicates the episode has terminated. (For example,
                 perhaps the pole tipped too far, or you lost your last life.)
             info (dict) :
-                dict{"function-name": {"Features": [], "Usage": None or float}}
+                dict{"TotalCyclesStat": number; 
+                     "FunctionUsageDict":{"function-name": "Usage"(None or float)}}
         """
         self.curr_step += 1
         self.action_episode_memory[self.curr_episode].append(action)
-        self.applied_passes += 1
 
         # Initialize the return value
-        reward = None
         ob = []
+        reward = None
         info = {}
         done = None
-        #TODO
-        ob, reward, info = self.Worker.run(self.run_target, OldPasses, action)
-        if self.applied_passes >= self.expected_passes_num:
+        ob, reward, info = self.Worker.run(self.run_target,
+                self.action_episode_memory[self.curr_episode])
+
+        if self.curr_step >= self.expected_passes_num:
             done = True
         else:
             done = False
         return ob, reward, done, info
 
-    def _get_init_ob(self, target):
+    def _get_init_ob(self, Target, ActionList):
         """
         return the features from applying empty pass
         """
-        #TODO: refer to EnvDoJob() and handle the retStatus
-        ob, reward, info = self.Worker.RemoteDoJob(Target=target, Passes="")
+        ob, reward, info = self.Worker.run(Target=Target, ActionList=ActionList)
         return ob
 
     def _reset(self):
@@ -119,10 +119,9 @@ class OptClangEnv(gym.Env):
         """
         self.action_episode_memory.append([])
         self.curr_episode += 1
-        self.applied_passes = 0
-        self.action_episode_memory = []
+        self.curr_step = 0
         self.run_target = random.choice(list(self.AllTargetsDict.keys()))
-        return self._get_init_ob(self.run_target)
+        return self._get_init_ob(self.run_target, self.action_episode_memory[self.curr_episode])
 
     def _render(self, mode='human', close=False):
         return
