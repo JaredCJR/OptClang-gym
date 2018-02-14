@@ -71,6 +71,9 @@ class OptClangEnv(gym.Env):
             ob (object) :
                 an environment-specific object representing your observation of
                 the environment.
+                For us,
+                dict{"function name": [
+                list from instrumentation(If you need np.array, do it by yourself)]}
             reward (float) :
                 amount of reward achieved by the previous action. The scale
                 varies between environments, but the goal is always to increase
@@ -83,10 +86,16 @@ class OptClangEnv(gym.Env):
                 being True indicates the episode has terminated. (For example,
                 perhaps the pole tipped too far, or you lost your last life.)
             info (dict) :
-                dict{"TotalCyclesStat": number; 
-                     "FunctionUsageDict":{"function-name": "Usage"(None or float)}}
+                dict{"Target": "application or bechmark name";
+                     "TotalCyclesStat": number(int);
+                     "FunctionUsageDict":{"function-name": Usage(float)};}
         """
         self.curr_step += 1
+        '''
+        The action from the agent is 0~33.
+        However, the clang expected 1~34.
+        '''
+        action = action + 1
         self.action_episode_memory[self.curr_episode].append(action)
 
         # Initialize the return value
@@ -108,11 +117,11 @@ class OptClangEnv(gym.Env):
         return the features from applying empty pass
         """
         ob, reward, info = self.Worker.run(Target=Target, ActionList=ActionList)
-        return ob
+        return ob, info
 
     def _reset(self):
         """
-        Reset the state of the environment and returns an initial observation.
+        Reset the state of the environment and returns an initial observation and info.
 
         Returns
         -------
@@ -124,6 +133,7 @@ class OptClangEnv(gym.Env):
         random.seed(a=self.seed_num)
         TargetList = sorted(list(self.AllTargetsDict.keys()))
         self.run_target = random.choice(TargetList)
+        #self.run_target = "Shootout-C++-except" # C++ example: city, consumer-lame, Shootout-C++-except
         return self._get_init_ob(self.run_target, self.action_episode_memory[self.curr_episode])
 
     def _render(self, mode='human', close=False):

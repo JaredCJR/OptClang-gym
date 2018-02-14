@@ -46,6 +46,7 @@ The Environment
 - Actions
   - Type: Discrete(34)
   - The action start from “0”, but the modified Clang start from 1
+    - This is already handled inside `gym-OptClang`
 
 
 | Num | Action (Apply pass)            |

@@ -4,6 +4,7 @@ import os
 import sys
 import fcntl
 import time
+import numpy as np
 
 class TcpClient():
     SOCKET = None
@@ -208,7 +209,7 @@ class Worker():
 Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cxx::hashtable<std::pair<char const* const, int>, char const*, __gnu_cxx::hash<char const*>, std::_Select1st<std::pair<char const* const, int> >, eqstr, std::allocator<int> >::resize  | 0.097
 
         Return format:
-        dict{"TotalCyclesStat": number; "FunctionUsageDict":{"function-name": "Usage"(float)}}
+        dict{"TotalCyclesStat": number(int); "FunctionUsageDict":{"function-name": Usage(float)}}
         """
         retDict = {}
         retDict["TotalCyclesStat"] = None
@@ -217,7 +218,7 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
         for rec in SplitDataList:
             items = rec.split('|')
             if len(items) == 2: #ex. cpu-cycles | 1051801991
-                retDict["TotalCyclesStat"] = items[1].strip()
+                retDict["TotalCyclesStat"] = int(items[1].strip())
             elif len(items) == 3: #ex. func | main | 0.190
                 FuncName = items[1].strip()
                 FuncUsage = float(items[2].strip())
@@ -244,23 +245,20 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
             retDict[funcInfo[0].strip()] = feaList
         return retDict
 
-    def RemoteDoJobOnce(self, Target, Passes):
+    def RemoteDoJobOnce(self, Target, Passes, WorkerID):
         """
-        retFeatures : List of instrumented results
+        retFeatures : string of features
         retStatus :
             1. "Success"
             2. "Failed"
             3. empty string <-- This is caused by Python3 TCP library.
                (May be fixed in newer library version.)
-        retInfo : Profiled info dict
+        retProfiled : Profiled info string
         """
         retFeatures = []
         retStatus = ""
-        retInfo = {}
 
         tcp = TcpClient()
-        # get remote-worker
-        WorkerID = self.hireRemoteWorker()
         # tell env-daemon to build, verify and run
         runStart = time.perf_counter()
         msg = "target @ {} @ {}".format(Target, Passes)
@@ -301,31 +299,44 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
         '''
         No matter it is successful or failed, free the worker.
         '''
-        self.freeRemoteWorker(WorkerID)
         return retFeatures, retStatus, retProfiled
 
     def RemoteDoJob(self, Target, Passes):
         """
         return observation, reward, info
+
+        observation : Dict of instrumented results
+            {"function name": [FeatureVectorList]}
+            ex. {'kernel_bicg_StrictFP': [vector of features]}
+        reward : "Success" or "Failed"
+        info : dict
+            {'Target': "name", 'FunctionUsageDict': {'main': float}, 'TotalCyclesStat': int}
+            ex. {'Target': "Shootout-C++-except",
+                 'FunctionUsageDict': {'main': 0.831}, 'TotalCyclesStat': 5936868987}
         """
-        retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes)
+        # get remote-worker
+        WorkerID = self.hireRemoteWorker()
+        retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes, WorkerID)
         while not retStatus:
             '''
             Encounter Python3 TCP connection error.
             (This may be fix by newer TCP library.)
             Try again until get meaningful messages.
             '''
-            retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes)
+            retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes, WorkerID)
+        # free remote-worker
+        self.freeRemoteWorker(WorkerID)
         '''
         The info wrapper
         '''
         retInfo = self.InfoFactory(retInfo)
+        retInfo["Target"] = Target
         retFeatures = self.FeatureFactory(retFeatures)
         return retFeatures, retStatus, retInfo
 
     def run(self, Target, ActionList):
         """
-        return observation, reward, info
+        return observation(array), reward(1 or -1), info(dict)
         """
         retOb = []
         retReward = None
@@ -335,6 +346,8 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
         for action in ActionList:
             Passes = Passes + str(action) + " "
         retOb, retReward, retInfo = self.RemoteDoJob(Target, Passes)
+        #print(retOb.keys())
+        #print(retInfo["FunctionUsageDict"].keys())
         if retReward == "Success":
             retReward = 1
         else:
