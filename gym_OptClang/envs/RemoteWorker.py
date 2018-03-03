@@ -214,6 +214,8 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
         retDict = {}
         retDict["TotalCyclesStat"] = None
         retDict["FunctionUsageDict"] = {}
+        if ProfiledData is None:
+            return retDict
         SplitDataList = ProfiledData.split(';')
         for rec in SplitDataList:
             items = rec.split('|')
@@ -221,6 +223,8 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
                 retDict["TotalCyclesStat"] = int(items[1].strip())
             elif len(items) == 3: #ex. func | main | 0.190
                 FuncName = items[1].strip()
+                if FuncName == '':
+                    continue
                 FuncUsage = float(items[2].strip())
                 retDict["FunctionUsageDict"][FuncName] = FuncUsage
         return retDict
@@ -228,6 +232,7 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
     def FeatureFactory(self, FeaturesStr):
         retDict = {}
         '''
+        Upper bound for each feature is 1000.
         ex. for each fuinction:
         atoi @ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         '''
@@ -237,12 +242,18 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
             feaList = []
             for count in funcInfo[1].split(','):
                 try:
-                    feaList.append(int(count.strip()))
+                    num = int(count.strip())
+                    if num > 1000:
+                        num = 1000
+                    feaList.append(num)
                 except:
                     pass
             # make sure all the features are parsed
             assert(len(feaList) == 4176)
-            retDict[funcInfo[0].strip()] = feaList
+            funcName = funcInfo[0].strip()
+            if funcName == '':
+                continue
+            retDict[funcName] = feaList
         return retDict
 
     def RemoteDoJobOnce(self, Target, Passes, WorkerID):
@@ -303,7 +314,7 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
 
     def RemoteDoJob(self, Target, Passes):
         """
-        return observation, reward, info
+        return observation, reward, info, isNormalDone
 
         observation : Dict of instrumented results
             {"function name": [FeatureVectorList]}
@@ -314,24 +325,39 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
             ex. {'Target': "Shootout-C++-except",
                  'FunctionUsageDict': {'main': 0.831}, 'TotalCyclesStat': 5936868987}
         """
+        isNormalDone = False
         # get remote-worker
         WorkerID = self.hireRemoteWorker()
         retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes, WorkerID)
-        while not retStatus:
-            '''
-            Encounter Python3 TCP connection error.
-            (This may be fix by newer TCP library.)
-            Try again until get meaningful messages.
-            '''
-            retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes, WorkerID)
+        # try at most 10 times
+        for _ in range(10):
+            if not retStatus:
+                '''
+                Encounter Python3 TCP connection error.
+                (This may be fix by newer TCP library.)
+                Try again until get meaningful messages.
+                '''
+                retFeatures, retStatus, retInfo = self.RemoteDoJobOnce(Target, Passes, WorkerID)
+                # for the last try
+                if retStatus: # may be "Failed"
+                    isNormalDone = True
+                    break
+            if retStatus: # may be "Failed"
+                isNormalDone = True
+                break
         # free remote-worker
         self.freeRemoteWorker(WorkerID)
-        '''
-        The info wrapper
-        '''
-        retInfo = self.InfoFactory(retInfo)
-        retInfo["Target"] = Target
-        retFeatures = self.FeatureFactory(retFeatures)
+        if isNormalDone:
+            # if the retStatus is None or "Failed", treat them as the same.
+            if retStatus == "Success":
+                '''
+                The info wrapper
+                '''
+                retInfo = self.InfoFactory(retInfo)
+                retInfo["Target"] = Target
+                retFeatures = self.FeatureFactory(retFeatures)
+        else:
+            retStatus = "CommunicateError"
         return retFeatures, retStatus, retInfo
 
     def run(self, Target, ActionList):
