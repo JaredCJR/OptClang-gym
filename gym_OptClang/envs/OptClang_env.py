@@ -36,7 +36,7 @@ class OptClangEnv(gym.Env):
         self.action_space = spaces.Discrete(34)
 
         '''
-        Define the observation: the feature from instrumentation the passes.
+        Define the observation: the feature from instrumentation of the passes.
         '''
         FeatureSize = 4176
         low = np.array([0]*FeatureSize)
@@ -51,6 +51,7 @@ class OptClangEnv(gym.Env):
         self.action_episode_memory = []
         self.seed_num = None
         #In out "random" experiment, 9 is the avaerage passes number that performs best.
+        #FIXME
         self.expected_passes_num = 9
         self.run_target = ""
 
@@ -74,6 +75,8 @@ class OptClangEnv(gym.Env):
                 For us,
                 dict{"function name": [
                 list from instrumentation(If you need np.array, do it by yourself)]}
+                Note: the upper bound for each feature,
+                      refer to "FeatureFactory" in "RemoteWorker.py"
             reward (float) :
                 amount of reward achieved by the previous action. The scale
                 varies between environments, but the goal is always to increase
@@ -133,7 +136,7 @@ class OptClangEnv(gym.Env):
         random.seed(a=self.seed_num)
         TargetList = sorted(list(self.AllTargetsDict.keys()))
         self.run_target = random.choice(TargetList)
-        #self.run_target = "Shootout-C++-except" # C++ example: city, consumer-lame, Shootout-C++-except
+        #self.run_target = "sqlite3" # C++ example: city, consumer-lame, Shootout-C++-except
         return self._get_init_ob(self.run_target, self.action_episode_memory[self.curr_episode])
 
     def _render(self, mode='human', close=False):
