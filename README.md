@@ -101,3 +101,7 @@ The Environment
     - Based on the random results, 9 is good choice
 - Solved Requirements
   - As same as the “Episode Termination”
+
+License
+----------------------------------------
+Refer to [LICENSE](./LICENSE)

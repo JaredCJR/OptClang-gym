@@ -126,9 +126,10 @@ class LockMechanism():
     """
     a simple class to provide a locking mechanism cross processes
     """
-    LockFile = "/tmp/gym-lockfile"
-    FreeMsg = "Free"
-    FD = None
+    def __init__(self):
+        self.LockFile = "/tmp/gym-lockfile"
+        self.FD = None
+
     def acquire(self):
         self.FD = open(self.LockFile, "w+")
         # Note: do not close the fd, it will release the lock.
@@ -302,7 +303,7 @@ Shootout-C++-hash; cpu-cycles | 1051801991; func | main | 0.190; func | __gnu_cx
                 gotFeatures = True
             sendEnd = time.perf_counter()
             sendTime = sendEnd - sendStart
-            printMsg = "WorkerID: {}; Target: {}; Status: {}; \nPasses= {}\nProfileSize: {}; FeatureSize: {}; \nRun-Time: {}; Send-Time: {};\n".format(WorkerID, Target, retStatus, Passes,len(retProfiled), len(retFeatures), runTime, sendTime)
+            printMsg = "WorkerID: {}; Target: {}; Status: {}; \nPasses= {};\nRun-Time: {}; Send-Time: {};\n".format(WorkerID, Target, retStatus, Passes, runTime, sendTime)
         else:
             printMsg = "\nRunCmd may failed.\n\nWorkerID: {}; Target: {}; Status: {};\nPasses: {}\nRun-Time: {};\n".format(WorkerID, Target, retStatus, Passes, runTime)
         printMsg = printMsg + "--------------------------------------\n"
