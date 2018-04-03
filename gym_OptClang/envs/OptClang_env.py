@@ -135,8 +135,11 @@ class OptClangEnv(gym.Env):
         self.curr_step = 0
         random.seed(a=self.seed_num)
         TargetList = sorted(list(self.AllTargetsDict.keys()))
+        #FIXME
         self.run_target = random.choice(TargetList)
-        #self.run_target = "sqlite3" # C++ example: city, consumer-lame, Shootout-C++-except
+        # C++ example: city, consumer-lame, Shootout-C++-except, sqlite3
+        #self.run_target = "SIBsim4"
+        #self.run_target = "ffbench"
         return self._get_init_ob(self.run_target, self.action_episode_memory[self.curr_episode])
 
     def _render(self, mode='human', close=False):
