@@ -5,6 +5,7 @@ import sys
 import fcntl
 import time
 import numpy as np
+import json
 
 class TcpClient():
     SOCKET = None
@@ -86,6 +87,7 @@ class Programs():
         """
         return a dict of available "makefile target" in llvm test-suite
         {name:[cpu-cycles-mean, cpu-cycles-sigma]}
+        **Only return the targets in the training set.
         """
         """
         Unwanted programs: Because of the bug in clang 5.0.1, not all of the
@@ -100,13 +102,23 @@ class Programs():
         # we re-measure the std-cycles, we should use the newer record.
         loc = loc + "/GraphGen/output/newMeasurableStdBenchmarkMeanAndSigma"
         retDict = {}
+        '''
+        get training set
+        '''
+        train_json = os.getenv("LLVM_THESIS_TrainingHome", "Error")
+        if train_json == "Error":
+            print("$LLVM_THESIS_TrainingHome is not defined.")
+            sys.exit(1)
+        train_json = train_json + "/trainingTargets.json"
+        TrainingTargetList = json.load(open(train_json))
         with open(loc, "r") as stdFile:
             for line in stdFile:
                 LineList = line.split(";")
                 name = LineList[0].strip().split("/")[-1]
                 if name not in UnwantedTargets:
-                    retDict[name] = [LineList[1].split("|")[1].strip(),
-                            LineList[2].split("|")[1].strip()]
+                    if name in TrainingTargetList:
+                        retDict[name] = [LineList[1].split("|")[1].strip(),
+                                LineList[2].split("|")[1].strip()]
             stdFile.close()
         return retDict
 
