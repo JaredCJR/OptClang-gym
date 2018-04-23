@@ -23,13 +23,13 @@ class OptClangEnv(gym.Env):
     The environment defines which actions can be taken at which point and
     when the agent receives which reward.
     """
-    prog = rwork.Programs()
     '''
     getAvailablePrograms() only returns the training targets.
     '''
     def __init__(self):
         self.__version__ = "0.1.0"
         print("OptClangEnv - Version {}".format(self.__version__))
+        prog = rwork.Programs()
         self.AllTargetsDict = prog.getAvailablePrograms()
         print("Number of training targets = {}".format(len(self.AllTargetsDict)))
 
