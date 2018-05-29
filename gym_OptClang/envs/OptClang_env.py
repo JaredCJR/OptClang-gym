@@ -55,7 +55,6 @@ class OptClangEnv(gym.Env):
         self.action_episode_memory = []
         self.seed_num = None
         #In out "random" experiment, 9 is the avaerage passes number that performs best.
-        #FIXME
         self.expected_passes_num = 9
         self.run_target = ""
 
